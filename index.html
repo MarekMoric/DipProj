@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SentimentAI | Social Media Analyzer</title>
+  
+  <!-- Modern Font: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="background-mesh"></div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="glass-header">
+      <div class="logo">
+        <i class="ph ph-brain"></i>
+        <h1>Sentiment<span>AI</span></h1>
+      </div>
+      <div class="header-actions">
+        <button id="btn-settings" class="btn btn-icon" title="API Settings">
+          <i class="ph ph-gear"></i> Settings
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-layout">
+      
+      <!-- Settings Panel (Hidden by default) -->
+      <section id="settings-panel" class="glass-panel hidden">
+        <div class="panel-header">
+          <h2><i class="ph ph-key"></i> Configuration</h2>
+          <button id="btn-close-settings" class="btn-close"><i class="ph ph-x"></i></button>
+        </div>
+        <div class="panel-body">
+          <div class="form-group">
+            <label for="llm-provider">LLM Provider</label>
+            <select id="llm-provider" disabled>
+              <option value="gemini" selected>Google Gemini (Recommended)</option>
+            </select>
+            <small>Currently optimized for Gemini API.</small>
+          </div>
+          <div class="form-group">
+            <label for="api-key">Gemini API Key</label>
+            <input type="password" id="api-key" placeholder="Enter your Gemini API key...">
+            <small>Your key is stored locally in your browser session.</small>
+          </div>
+          <button id="btn-save-settings" class="btn btn-primary">Save Settings</button>
+        </div>
+      </section>
+
+      <!-- Upload Section -->
+      <section id="upload-section" class="glass-panel">
+        <h2>Import Data</h2>
+        <p class="subtitle">Upload social media text in CSV or JSON format.</p>
+        
+        <div id="drop-zone" class="drop-zone">
+          <i class="ph ph-cloud-arrow-up upload-icon"></i>
+          <h3>Drag & Drop files here</h3>
+          <p>or</p>
+          <label for="file-upload" class="btn btn-secondary">Browse Files</label>
+          <input type="file" id="file-upload" accept=".csv,.json" hidden>
+        </div>
+      </section>
+
+      <!-- Dashboard & Results Section (Hidden initially) -->
+      <section id="dashboard-section" class="glass-panel hidden">
+        <div class="dashboard-header">
+          <h2>Analysis Results</h2>
+          <div class="dashboard-actions">
+            <button id="btn-analyze" class="btn btn-accent">
+              <i class="ph ph-magic-wand"></i> Analyze Sentiment
+            </button>
+            <button id="btn-export" class="btn btn-outline" disabled>
+              <i class="ph ph-download-simple"></i> Export
+            </button>
+          </div>
+        </div>
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-label">Total Records</span>
+            <span class="stat-value" id="stat-total">0</span>
+          </div>
+          <div class="stat-card stat-positive">
+            <span class="stat-label">Positive</span>
+            <span class="stat-value" id="stat-positive">0</span>
+          </div>
+          <div class="stat-card stat-neutral">
+            <span class="stat-label">Neutral</span>
+            <span class="stat-value" id="stat-neutral">0</span>
+          </div>
+          <div class="stat-card stat-negative">
+            <span class="stat-label">Negative</span>
+            <span class="stat-value" id="stat-negative">0</span>
+          </div>
+        </div>
+
+        <div class="data-grid-container">
+          <table class="data-grid">
+            <thead>
+              <tr>
+                <th width="5%">ID</th>
+                <th width="75%">Text Content</th>
+                <th width="20%">Sentiment</th>
+              </tr>
+            </thead>
+            <tbody id="data-table-body">
+              <!-- Rows injected via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+      
+    </main>
+  </div>
+
+  <!-- Notifications -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
