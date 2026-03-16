@@ -1,9 +1,10 @@
 import { parseFile } from './parser.js';
-import { showToast, renderDataGrid, updateRowSentiment, updateDashboardStats, toggleSettings, showDashboard } from './ui.js';
-import { evaluateBatch } from './llm.js';
+import { showToast, renderDataGrid, updateGlobalSentiment, updateDashboardStats, toggleSettings, showDashboard } from './ui.js';
+import { evaluateAggregatedSentiment } from './llm.js';
 
 // Application State
 let appData = [];
+let filteredData = [];
 let isAnalyzing = false;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -59,6 +60,17 @@ function setupEventListeners() {
 
   // Export Button
   document.getElementById('btn-export').addEventListener('click', handleExport);
+
+  // Filter Input
+  document.getElementById('filter-input').addEventListener('input', handleFilter);
+}
+
+function handleFilter(e) {
+  const keyword = e.target.value.toLowerCase();
+  filteredData = keyword ? appData.filter(item => item.text.toLowerCase().includes(keyword)) : [...appData];
+  
+  renderDataGrid(filteredData);
+  updateDashboardStats(filteredData);
 }
 
 function preventDefaults(e) {
@@ -82,12 +94,16 @@ async function handleFiles(files) {
     const data = await parseFile(file);
     appData = data;
     
+    const keyword = document.getElementById('filter-input').value.toLowerCase();
+    filteredData = keyword ? appData.filter(item => item.text.toLowerCase().includes(keyword)) : [...appData];
+
     showToast(`Successfully loaded ${appData.length} records.`, 'success');
     
     // Switch UI view
     showDashboard(true);
-    renderDataGrid(appData);
-    updateDashboardStats(appData);
+    renderDataGrid(filteredData);
+    updateDashboardStats(filteredData);
+    updateGlobalSentiment('pending');
     
     // Reset export button state
     document.getElementById('btn-export').disabled = true;
@@ -105,7 +121,8 @@ async function handleFiles(files) {
 }
 
 async function handleAnalyze() {
-  if (appData.length === 0) {
+  const dataToAnalyze = filteredData;
+  if (dataToAnalyze.length === 0) {
     showToast('No data to analyze.', 'error');
     return;
   }
@@ -124,17 +141,22 @@ async function handleAnalyze() {
   analyzeBtn.disabled = true;
   analyzeBtn.innerHTML = '<i class="ph ph-spinner-gap spin"></i> Analyzing...';
 
-  showToast('Analysis started...', 'info');
+  showToast('Aggregated analysis started...', 'info');
 
   try {
-    await evaluateBatch(appData, apiKey, (id, sentiment) => {
-      // Callback fired on progress
-      updateRowSentiment(id, sentiment);
-      updateDashboardStats(appData);
-    });
+    updateGlobalSentiment('analyzing');
 
-    showToast('Analysis complete!', 'success');
-    document.getElementById('btn-export').disabled = false; // Enable export
+    const texts = dataToAnalyze.map(item => item.text);
+    const overallSentiment = await evaluateAggregatedSentiment(texts, apiKey);
+    
+    updateGlobalSentiment(overallSentiment);
+
+    if (overallSentiment === 'error') {
+      showToast('Analysis encountered an error.', 'error');
+    } else {
+      showToast(`Analysis complete! Overall sentiment: ${overallSentiment.toUpperCase()}`, 'success');
+      document.getElementById('btn-export').disabled = false; // Enable export
+    }
 
   } catch (err) {
     showToast(`Analysis error: ${err.message}`, 'error');
@@ -146,14 +168,14 @@ async function handleAnalyze() {
 }
 
 function handleExport() {
-  if (appData.length === 0) return;
+  const dataToExport = filteredData;
+  if (dataToExport.length === 0) return;
 
-  // Simple CSV generation
-  const headers = ['ID', 'Text', 'Sentiment'];
-  const rows = appData.map(item => [
+  // Simple CSV generation (Removed Sentiment column per request)
+  const headers = ['ID', 'Text'];
+  const rows = dataToExport.map(item => [
     item.id,
-    `"${item.text.replace(/"/g, '""')}"`, // escape quotes for CSV
-    item.sentiment.toUpperCase()
+    `"${item.text.replace(/"/g, '""')}"` // escape quotes for CSV
   ]);
 
   const csvContent = [

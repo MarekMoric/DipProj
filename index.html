@@ -13,6 +13,9 @@
   <!-- Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
   
+  <!-- SheetJS for XLSX support -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
@@ -61,14 +64,14 @@
       <!-- Upload Section -->
       <section id="upload-section" class="glass-panel">
         <h2>Import Data</h2>
-        <p class="subtitle">Upload social media text in CSV or JSON format.</p>
+        <p class="subtitle">Upload social media text in CSV, JSON, or XLSX format.</p>
         
         <div id="drop-zone" class="drop-zone">
           <i class="ph ph-cloud-arrow-up upload-icon"></i>
           <h3>Drag & Drop files here</h3>
           <p>or</p>
           <label for="file-upload" class="btn btn-secondary">Browse Files</label>
-          <input type="file" id="file-upload" accept=".csv,.json" hidden>
+          <input type="file" id="file-upload" accept=".csv,.json,.xlsx" hidden>
         </div>
       </section>
 
@@ -77,6 +80,10 @@
         <div class="dashboard-header">
           <h2>Analysis Results</h2>
           <div class="dashboard-actions">
+            <div class="search-box">
+              <i class="ph ph-magnifying-glass"></i>
+              <input type="text" id="filter-input" placeholder="Filter by keyword (e.g. BTC)...">
+            </div>
             <button id="btn-analyze" class="btn btn-accent">
               <i class="ph ph-magic-wand"></i> Analyze Sentiment
             </button>
@@ -91,17 +98,11 @@
             <span class="stat-label">Total Records</span>
             <span class="stat-value" id="stat-total">0</span>
           </div>
-          <div class="stat-card stat-positive">
-            <span class="stat-label">Positive</span>
-            <span class="stat-value" id="stat-positive">0</span>
-          </div>
-          <div class="stat-card stat-neutral">
-            <span class="stat-label">Neutral</span>
-            <span class="stat-value" id="stat-neutral">0</span>
-          </div>
-          <div class="stat-card stat-negative">
-            <span class="stat-label">Negative</span>
-            <span class="stat-value" id="stat-negative">0</span>
+          <div class="stat-card">
+            <span class="stat-label">Global Sentiment</span>
+            <span class="stat-value" id="stat-global-sentiment">
+              <span class="badge badge-neutral"><i class="ph ph-minus"></i> PENDING</span>
+            </span>
           </div>
         </div>
 
@@ -110,8 +111,7 @@
             <thead>
               <tr>
                 <th width="5%">ID</th>
-                <th width="75%">Text Content</th>
-                <th width="20%">Sentiment</th>
+                <th width="95%">Text Content</th>
               </tr>
             </thead>
             <tbody id="data-table-body">

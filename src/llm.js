@@ -2,7 +2,7 @@
  * Gemini API Integration for Sentiment Analysis
  */
 
-const MODEL_NAME = 'gemini-1.5-flash';
+const MODEL_NAME = 'gemini-2.5-flash';
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent`;
 
 // The predefined prompt structure
@@ -76,30 +76,65 @@ export async function evaluateSentiment(text, apiKey) {
 }
 
 /**
- * Evaluates a batch of texts sequentially, yielding progress.
- * @param {Array} items - Array of { id, text, sentiment }
+ * Evaluates the aggregated sentiment of a batch of texts using Gemini.
+ * @param {Array<string>} texts - Array of text strings
  * @param {string} apiKey 
- * @param {Function} onProgress - Callback (id, newSentiment) to update UI
+ * @returns {Promise<string>} 'positive', 'negative', 'neutral', or 'error'
  */
-export async function evaluateBatch(items, apiKey, onProgress) {
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    
-    // Skip already analyzed elements unless forcing a re-run
-    if (item.sentiment === 'positive' || item.sentiment === 'negative' || item.sentiment === 'neutral') {
-      continue;
+export async function evaluateAggregatedSentiment(texts, apiKey) {
+  if (!apiKey) {
+    throw new Error('API Key is missing. Please configure it in Settings.');
+  }
+
+  const combinedText = texts.map((t, i) => `[Tweet ${i+1}]: ${t}`).join('\n');
+  const userPrompt = `This is a bag of tweets for which I would like to have sentiment analysis done. Keep it brief and just give me the overall sentiment.\n\n${combinedText}`;
+
+  const payload = {
+    contents: [
+      {
+        parts: [
+          { text: SYSTEM_PROMPT },
+          { text: userPrompt }
+        ]
+      }
+    ],
+    generationConfig: {
+      temperature: 0.1, // Low temperature for deterministic output
+      maxOutputTokens: 10,
+    }
+  };
+
+  try {
+    const response = await fetch(`${API_URL}?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Gemini API Error:', errorData);
+      throw new Error(errorData.error?.message || `API Error: ${response.status}`);
     }
 
-    // Set status to analyzing
-    item.sentiment = 'analyzing';
-    onProgress(item.id, 'analyzing');
-
-    // Slight delay to avoid hammering the API too hard immediately (rate limits)
-    await new Promise(res => setTimeout(res, 500));
-
-    const sentiment = await evaluateSentiment(item.text, apiKey);
+    const data = await response.json();
     
-    item.sentiment = sentiment;
-    onProgress(item.id, sentiment);
+    // Parse the result
+    if (data.candidates && data.candidates.length > 0) {
+      const resultText = data.candidates[0].content.parts[0].text.trim().toLowerCase();
+      
+      // Clean up the model output just in case (e.g., if it adds a period)
+      if (resultText.includes('positive')) return 'positive';
+      if (resultText.includes('negative')) return 'negative';
+      return 'neutral';
+    } else {
+      console.error('Unexpected response format:', data);
+      return 'error';
+    }
+  } catch (error) {
+    console.error('Failed to evaluate sentiment:', error);
+    return 'error';
   }
 }
