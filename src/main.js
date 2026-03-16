@@ -147,9 +147,13 @@ async function handleAnalyze() {
     updateGlobalSentiment('analyzing');
 
     const texts = dataToAnalyze.map(item => item.text);
-    const overallSentiment = await evaluateAggregatedSentiment(texts, apiKey);
+    const result = await evaluateAggregatedSentiment(texts, apiKey);
     
-    updateGlobalSentiment(overallSentiment);
+    // Result now contains both sentiment and explanation
+    const overallSentiment = result.sentiment;
+    const explanation = result.explanation;
+    
+    updateGlobalSentiment(overallSentiment, explanation);
 
     if (overallSentiment === 'error') {
       showToast('Analysis encountered an error.', 'error');

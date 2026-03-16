@@ -41,7 +41,7 @@ export function renderDataGrid(data) {
   });
 }
 
-export function updateGlobalSentiment(sentiment) {
+export function updateGlobalSentiment(sentiment, explanation = '') {
   const container = document.getElementById('stat-global-sentiment');
   if (!container) return;
 
@@ -55,7 +55,11 @@ export function updateGlobalSentiment(sentiment) {
   else if (sentiment === 'error') { iconHTML = '<i class="ph ph-warning"></i>'; text = 'ERROR'; }
   else if (sentiment === 'analyzing') { iconHTML = '<i class="ph ph-spinner-gap spin"></i>'; text = 'ANALYZING'; }
 
-  container.innerHTML = `<span class="badge ${sentiment === 'analyzing' ? 'badge-pending' : badgeClass}">${iconHTML} ${text}</span>`;
+  let html = `<span class="badge ${sentiment === 'analyzing' ? 'badge-pending' : badgeClass}">${iconHTML} ${text}</span>`;
+  if (explanation) {
+    html += `<p class="sentiment-explanation mt-2 text-sm text-gray-300 italic">${escapeHTML(explanation)}</p>`;
+  }
+  container.innerHTML = html;
 }
 
 export function updateDashboardStats(data) {
