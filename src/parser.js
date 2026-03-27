@@ -24,7 +24,7 @@ export async function parseFile(file) {
         }
 
         // Validate structure and map to internal format
-        const validData = parsedData.filter(row => row && (row['Tweet Content'] || row.text || row.content || row.message || typeof row === 'string'));
+        const validData = parsedData.filter(row => row && (row['Content'] || row.text || row.content || row.message || typeof row === 'string'));
 
         if (validData.length === 0) {
           return reject(new Error('No valid text data found in the file. Ensure there is a "Tweet Content" or "text" column.'));
@@ -36,12 +36,25 @@ export async function parseFile(file) {
           if (typeof row === 'string') {
             textValue = row;
           } else {
-            textValue = row['Tweet Content'] || row.text || row.message || row.content || Object.values(row)[0];
+            textValue = row['Content'] || row.text || row.message || row.content || Object.values(row)[0];
+          }
+
+          let dateStr = null;
+          let timeStr = null;
+          if (typeof row === 'object') {
+            const rawDate = row['Date'] || row.date || null;
+            if (rawDate) {
+              const parts = String(rawDate).split(' at ');
+              dateStr = parts[0] ? parts[0].trim() : null;
+              timeStr = parts[1] ? parts[1].trim() : null;
+            }
           }
 
           return {
             id: index + 1,
             text: textValue,
+            date: dateStr,
+            time: timeStr,
             sentiment: 'pending', // default
             error: null
           };
@@ -54,7 +67,7 @@ export async function parseFile(file) {
     };
 
     reader.onerror = () => reject(new Error('Error reading file'));
-    
+
     if (isXlsx) {
       reader.readAsArrayBuffer(file);
     } else {

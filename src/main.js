@@ -1,5 +1,5 @@
 import { parseFile } from './parser.js';
-import { showToast, renderDataGrid, updateGlobalSentiment, updateDashboardStats, toggleSettings, showDashboard } from './ui.js';
+import { showToast, renderDataGrid, updateGlobalSentiment, updateDashboardStats, toggleSettings, showDashboard, renderFrequencyGraph } from './ui.js';
 import { evaluateAggregatedSentiment } from './llm.js';
 
 // Application State
@@ -21,7 +21,7 @@ function setupEventListeners() {
   // Settings UI
   document.getElementById('btn-settings').addEventListener('click', () => toggleSettings(true));
   document.getElementById('btn-close-settings').addEventListener('click', () => toggleSettings(false));
-  
+
   document.getElementById('btn-save-settings').addEventListener('click', () => {
     const key = document.getElementById('api-key').value.trim();
     if (key) {
@@ -68,9 +68,10 @@ function setupEventListeners() {
 function handleFilter(e) {
   const keyword = e.target.value.toLowerCase();
   filteredData = keyword ? appData.filter(item => item.text.toLowerCase().includes(keyword)) : [...appData];
-  
+
   renderDataGrid(filteredData);
   updateDashboardStats(filteredData);
+  renderFrequencyGraph(filteredData);
 }
 
 function preventDefaults(e) {
@@ -86,25 +87,26 @@ function handleDrop(e) {
 
 async function handleFiles(files) {
   if (files.length === 0) return;
-  
+
   const file = files[0];
   showToast(`Parsing ${file.name}...`, 'info');
 
   try {
     const data = await parseFile(file);
     appData = data;
-    
+
     const keyword = document.getElementById('filter-input').value.toLowerCase();
     filteredData = keyword ? appData.filter(item => item.text.toLowerCase().includes(keyword)) : [...appData];
 
     showToast(`Successfully loaded ${appData.length} records.`, 'success');
-    
+
     // Switch UI view
     showDashboard(true);
     renderDataGrid(filteredData);
     updateDashboardStats(filteredData);
+    renderFrequencyGraph(filteredData);
     updateGlobalSentiment('pending');
-    
+
     // Reset export button state
     document.getElementById('btn-export').disabled = true;
 
@@ -148,11 +150,11 @@ async function handleAnalyze() {
 
     const texts = dataToAnalyze.map(item => item.text);
     const result = await evaluateAggregatedSentiment(texts, apiKey);
-    
+
     // Result now contains both sentiment and explanation
     const overallSentiment = result.sentiment;
     const explanation = result.explanation;
-    
+
     updateGlobalSentiment(overallSentiment, explanation);
 
     if (overallSentiment === 'error') {
@@ -189,7 +191,7 @@ function handleExport() {
 
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
-  
+
   const link = document.createElement('a');
   link.href = url;
   link.setAttribute('download', 'sentiment_results.csv');

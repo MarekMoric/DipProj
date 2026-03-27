@@ -1,97 +1,233 @@
 // UI Utility functions for Manipulating DOM State
 
 export function showToast(message, type = 'info') {
-  const container = document.getElementById('toast-container');
-  if (!container) return;
+    const container = document.getElementById('toast-container');
+    if (!container) return;
 
-  const toast = document.createElement('div');
-  toast.className = `toast toast-${type}`;
-  
-  let icon = 'ph-info';
-  if (type === 'success') icon = 'ph-check-circle';
-  if (type === 'error') icon = 'ph-warning-circle';
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
 
-  toast.innerHTML = `<i class="ph ${icon}"></i> <span>${message}</span>`;
-  container.appendChild(toast);
+    let icon = 'ph-info';
+    if (type === 'success') icon = 'ph-check-circle';
+    if (type === 'error') icon = 'ph-warning-circle';
 
-  // Auto-remove after 4s
-  setTimeout(() => {
-    toast.classList.add('hiding');
-    toast.addEventListener('animationend', () => {
-      toast.remove();
-    });
-  }, 4000);
+    toast.innerHTML = `<i class="ph ${icon}"></i> <span>${message}</span>`;
+    container.appendChild(toast);
+
+    // Auto-remove after 4s
+    setTimeout(() => {
+        toast.classList.add('hiding');
+        toast.addEventListener('animationend', () => {
+            toast.remove();
+        });
+    }, 4000);
 }
 
 export function renderDataGrid(data) {
-  const tbody = document.getElementById('data-table-body');
-  if (!tbody) return;
+    const tbody = document.getElementById('data-table-body');
+    if (!tbody) return;
 
-  tbody.innerHTML = '';
-  
-  data.forEach(item => {
-    const tr = document.createElement('tr');
-    tr.id = `row-${item.id}`;
-    
-    tr.innerHTML = `
+    tbody.innerHTML = '';
+
+    data.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.id = `row-${item.id}`;
+
+        tr.innerHTML = `
       <td>${item.id}</td>
       <td>${escapeHTML(item.text)}</td>
     `;
-    tbody.appendChild(tr);
-  });
+        tbody.appendChild(tr);
+    });
 }
 
 export function updateGlobalSentiment(sentiment, explanation = '') {
-  const container = document.getElementById('stat-global-sentiment');
-  if (!container) return;
+    const container = document.getElementById('stat-global-sentiment');
+    if (!container) return;
 
-  const badgeClass = `badge-${sentiment.toLowerCase()}`;
-  let iconHTML = '<i class="ph ph-minus"></i>';
-  let text = 'PENDING';
-  
-  if (sentiment === 'positive') { iconHTML = '<i class="ph ph-smiley"></i>'; text = 'POSITIVE'; }
-  else if (sentiment === 'negative') { iconHTML = '<i class="ph ph-smiley-sad"></i>'; text = 'NEGATIVE'; }
-  else if (sentiment === 'neutral') { iconHTML = '<i class="ph ph-smiley-meh"></i>'; text = 'NEUTRAL'; }
-  else if (sentiment === 'error') { iconHTML = '<i class="ph ph-warning"></i>'; text = 'ERROR'; }
-  else if (sentiment === 'analyzing') { iconHTML = '<i class="ph ph-spinner-gap spin"></i>'; text = 'ANALYZING'; }
+    const badgeClass = `badge-${sentiment.toLowerCase()}`;
+    let iconHTML = '<i class="ph ph-minus"></i>';
+    let text = 'PENDING';
 
-  let html = `<span class="badge ${sentiment === 'analyzing' ? 'badge-pending' : badgeClass}">${iconHTML} ${text}</span>`;
-  if (explanation) {
-    html += `<p class="sentiment-explanation mt-2 text-sm text-gray-300 italic">${escapeHTML(explanation)}</p>`;
-  }
-  container.innerHTML = html;
+    if (sentiment === 'positive') { iconHTML = '<i class="ph ph-smiley"></i>'; text = 'POSITIVE'; }
+    else if (sentiment === 'negative') { iconHTML = '<i class="ph ph-smiley-sad"></i>'; text = 'NEGATIVE'; }
+    else if (sentiment === 'neutral') { iconHTML = '<i class="ph ph-smiley-meh"></i>'; text = 'NEUTRAL'; }
+    else if (sentiment === 'error') { iconHTML = '<i class="ph ph-warning"></i>'; text = 'ERROR'; }
+    else if (sentiment === 'analyzing') { iconHTML = '<i class="ph ph-spinner-gap spin"></i>'; text = 'ANALYZING'; }
+
+    let html = `<span class="badge ${sentiment === 'analyzing' ? 'badge-pending' : badgeClass}">${iconHTML} ${text}</span>`;
+    if (explanation) {
+        html += `<p class="sentiment-explanation mt-2 text-sm text-gray-300 italic">${escapeHTML(explanation)}</p>`;
+    }
+    container.innerHTML = html;
 }
 
 export function updateDashboardStats(data) {
-  const totals = data.length;
-  document.getElementById('stat-total').textContent = totals;
+    const totals = data.length;
+    document.getElementById('stat-total').textContent = totals;
 }
 
 export function toggleSettings(show) {
-  const panel = document.getElementById('settings-panel');
-  if (show === undefined) {
-    panel.classList.toggle('hidden');
-  } else {
-    show ? panel.classList.remove('hidden') : panel.classList.add('hidden');
-  }
+    const panel = document.getElementById('settings-panel');
+    if (show === undefined) {
+        panel.classList.toggle('hidden');
+    } else {
+        show ? panel.classList.remove('hidden') : panel.classList.add('hidden');
+    }
 }
 
 export function showDashboard(show = true) {
-  const dashboard = document.getElementById('dashboard-section');
-  const upload = document.getElementById('upload-section');
-  
-  if (show) {
-    dashboard.classList.remove('hidden');
-    upload.classList.add('hidden');
-  } else {
-    dashboard.classList.add('hidden');
-    upload.classList.remove('hidden');
-  }
+    const dashboard = document.getElementById('dashboard-section');
+    const upload = document.getElementById('upload-section');
+
+    if (show) {
+        dashboard.classList.remove('hidden');
+        upload.classList.add('hidden');
+    } else {
+        dashboard.classList.add('hidden');
+        upload.classList.remove('hidden');
+    }
 }
 
 // Basic HTML sanitizer for table rendering
 function escapeHTML(str) {
-  const div = document.createElement('div');
-  div.innerText = str;
-  return div.innerHTML;
+    const div = document.createElement('div');
+    div.innerText = str;
+    return div.innerHTML;
+}
+
+let currentGraphData = [];
+
+export function renderFrequencyGraph(data) {
+    if (data) {
+        currentGraphData = data;
+    }
+
+    const canvas = document.getElementById('frequencyChart');
+    const viewModeSelect = document.getElementById('chart-view-mode');
+    const daySelect = document.getElementById('chart-day-select');
+    if (!canvas || !viewModeSelect || !daySelect) return;
+
+    if (!window.chartControlsSetup) {
+        viewModeSelect.addEventListener('change', () => renderFrequencyGraph());
+        daySelect.addEventListener('change', () => renderFrequencyGraph());
+        window.chartControlsSetup = true;
+    }
+
+    const isHourly = viewModeSelect.value === 'hourly';
+
+    // Extract unique days
+    const uniqueDays = [...new Set(currentGraphData.filter(d => d.date).map(d => d.date))].sort((a, b) => new Date(a) - new Date(b));
+
+    // Populate day select if needed
+    if (isHourly) {
+        daySelect.classList.remove('hidden');
+        if (daySelect.options.length !== uniqueDays.length) {
+            const currentSelected = daySelect.value;
+            daySelect.innerHTML = uniqueDays.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
+            if (uniqueDays.includes(currentSelected)) {
+                daySelect.value = currentSelected;
+            }
+        }
+    } else {
+        daySelect.classList.add('hidden');
+    }
+
+    const targetDay = daySelect.value || uniqueDays[0];
+
+    // Group data
+    const countsMap = {};
+    if (isHourly) {
+        currentGraphData.forEach(item => {
+            if (item.date === targetDay && item.time) {
+                // time format: "12:55 PM" -> extract hour e.g. "12 PM"
+                const timeParts = item.time.split(' ');
+                if (timeParts.length === 2) {
+                    const hm = timeParts[0].split(':');
+                    // Format like "12 PM" or "01 PM"
+                    let hourNum = hm[0];
+                    let hourStr = `${hourNum} ${timeParts[1]}`;
+                    countsMap[hourStr] = (countsMap[hourStr] || 0) + 1;
+                }
+            }
+        });
+    } else {
+        currentGraphData.forEach(item => {
+            if (item.date) {
+                countsMap[item.date] = (countsMap[item.date] || 0) + 1;
+            }
+        });
+    }
+
+    let sortedLabels = [];
+    if (isHourly) {
+        const parseHourTo24 = (label) => {
+            const parts = label.split(' ');
+            let h = parseInt(parts[0], 10);
+            const ampm = parts[1];
+            if (ampm === 'PM' && h < 12) h += 12;
+            if (ampm === 'AM' && h === 12) h = 0;
+            return h;
+        };
+        sortedLabels = Object.keys(countsMap).sort((a, b) => parseHourTo24(a) - parseHourTo24(b));
+    } else {
+        sortedLabels = Object.keys(countsMap).sort((a, b) => new Date(a) - new Date(b));
+    }
+
+    const counts = sortedLabels.map(label => countsMap[label]);
+
+    if (window.frequencyChartInstance) {
+        window.frequencyChartInstance.destroy();
+    }
+
+    if (sortedLabels.length === 0) return;
+
+    const ctx = canvas.getContext('2d');
+    window.frequencyChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: sortedLabels,
+            datasets: [{
+                label: 'Tweet Volume',
+                data: counts,
+                borderColor: '#ec4899',
+                backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#ec4899',
+                pointBorderColor: '#fff',
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: 'rgba(15, 17, 26, 0.9)',
+                    titleColor: '#f8fafc',
+                    bodyColor: '#e2e8f0',
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderWidth: 1
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#94a3b8' },
+                    grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: '#94a3b8', stepSize: 1, precision: 0 },
+                    grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false }
+                }
+            },
+            interaction: { mode: 'nearest', axis: 'x', intersect: false }
+        }
+    });
 }
