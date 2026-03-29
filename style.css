@@ -39,6 +39,10 @@ body {
   overflow-x: hidden;
 }
 
+select {
+  color-scheme: dark;
+}
+
 /* Background Mesh Gradient */
 .background-mesh {
   position: fixed;
@@ -325,9 +329,15 @@ body {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: 250px 1fr;
   gap: 1.5rem;
   margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .stat-card {

@@ -97,27 +97,66 @@ function escapeHTML(str) {
 }
 
 let currentGraphData = [];
+export let currentPriceData = [];
+
+function formatDateForInput(dateStr) {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
 
 export function renderFrequencyGraph(data) {
+    let isNewData = false;
     if (data) {
         currentGraphData = data;
+        isNewData = true;
     }
 
     const canvas = document.getElementById('frequencyChart');
     const viewModeSelect = document.getElementById('chart-view-mode');
     const daySelect = document.getElementById('chart-day-select');
+    const dailyRangeControls = document.getElementById('daily-range-controls');
+    const startDateInput = document.getElementById('chart-start-date');
+    const endDateInput = document.getElementById('chart-end-date');
     if (!canvas || !viewModeSelect || !daySelect) return;
 
     if (!window.chartControlsSetup) {
-        viewModeSelect.addEventListener('change', () => renderFrequencyGraph());
-        daySelect.addEventListener('change', () => renderFrequencyGraph());
+        viewModeSelect.addEventListener('change', () => { renderFrequencyGraph(); renderPriceGraph(); });
+        daySelect.addEventListener('change', () => { renderFrequencyGraph(); renderPriceGraph(); });
+        if (startDateInput) startDateInput.addEventListener('change', () => { renderFrequencyGraph(); renderPriceGraph(); });
+        if (endDateInput) endDateInput.addEventListener('change', () => { renderFrequencyGraph(); renderPriceGraph(); });
         window.chartControlsSetup = true;
     }
 
     const isHourly = viewModeSelect.value === 'hourly';
+    
+    if (dailyRangeControls) {
+        dailyRangeControls.style.display = isHourly ? 'none' : 'flex';
+    }
 
-    // Extract unique days
-    const uniqueDays = [...new Set(currentGraphData.filter(d => d.date).map(d => d.date))].sort((a, b) => new Date(a) - new Date(b));
+    // Extract unique days from both datasets
+    const allDates = [...currentGraphData.map(d => d.date), ...currentPriceData.map(d => d.date)].filter(Boolean);
+    const uniqueDays = [...new Set(allDates)].sort((a, b) => new Date(a) - new Date(b));
+
+    // Update min/max and initial values for date pickers when new data is loaded
+    if (isNewData && uniqueDays.length > 0 && startDateInput && endDateInput) {
+        const minDateStr = formatDateForInput(uniqueDays[0]);
+        const maxDateStr = formatDateForInput(uniqueDays[uniqueDays.length - 1]);
+        
+        if (minDateStr) {
+            startDateInput.min = minDateStr;
+            startDateInput.value = minDateStr;
+            endDateInput.min = minDateStr;
+        }
+        if (maxDateStr) {
+            endDateInput.max = maxDateStr;
+            endDateInput.value = maxDateStr;
+            startDateInput.max = maxDateStr;
+        }
+    }
 
     // Populate day select if needed
     if (isHourly) {
@@ -134,6 +173,37 @@ export function renderFrequencyGraph(data) {
     }
 
     const targetDay = daySelect.value || uniqueDays[0];
+
+    let filteredGraphData = currentGraphData;
+    
+    // Apply date range filter for the daily view
+    if (!isHourly && startDateInput && endDateInput) {
+        const start = startDateInput.value ? new Date(startDateInput.value) : null;
+        const end = endDateInput.value ? new Date(endDateInput.value) : null;
+        
+        if (start || end) {
+            filteredGraphData = currentGraphData.filter(item => {
+                if (!item.date) return false;
+                const itemDate = new Date(item.date);
+                if (start && itemDate < start) return false;
+                if (end) {
+                    // end date is inclusive for the day
+                    const endInclusive = new Date(end);
+                    endInclusive.setHours(23, 59, 59, 999);
+                    if (itemDate > endInclusive) return false;
+                }
+                return true;
+            });
+        }
+    }
+
+    // Filter displayed grid
+    if (isHourly) {
+        const dayData = currentGraphData.filter(item => item.date === targetDay);
+        renderDataGrid(dayData);
+    } else {
+        renderDataGrid(filteredGraphData);
+    }
 
     // Group data
     const countsMap = {};
@@ -152,7 +222,7 @@ export function renderFrequencyGraph(data) {
             }
         });
     } else {
-        currentGraphData.forEach(item => {
+        filteredGraphData.forEach(item => {
             if (item.date) {
                 countsMap[item.date] = (countsMap[item.date] || 0) + 1;
             }
@@ -224,6 +294,121 @@ export function renderFrequencyGraph(data) {
                 y: {
                     beginAtZero: true,
                     ticks: { color: '#94a3b8', stepSize: 1, precision: 0 },
+                    grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false }
+                }
+            },
+            interaction: { mode: 'nearest', axis: 'x', intersect: false }
+        }
+    });
+}
+
+export function renderPriceGraph(data) {
+    if (data) {
+        currentPriceData = data;
+        
+        // Populate the dropdown with unique days when new data arrives
+        const priceDaySelect = document.getElementById('price-day-select');
+        if (priceDaySelect) {
+            const uniquePriceDays = [...new Set(currentPriceData.map(d => d.date).filter(Boolean))].sort((a, b) => new Date(a) - new Date(b));
+            
+            // Keep the selected value if it still exists
+            const currentValue = priceDaySelect.value;
+            
+            priceDaySelect.innerHTML = '<option value="all">All Days</option>';
+            uniquePriceDays.forEach(day => {
+                const option = document.createElement('option');
+                option.value = day;
+                option.innerText = day;
+                priceDaySelect.appendChild(option);
+            });
+            
+            if (uniquePriceDays.includes(currentValue)) {
+                priceDaySelect.value = currentValue;
+            }
+            
+            if (!window.priceChartControlsSetup) {
+                priceDaySelect.addEventListener('change', () => renderPriceGraph());
+                window.priceChartControlsSetup = true;
+            }
+        }
+    }
+    
+    if (!currentPriceData || currentPriceData.length === 0) return;
+
+    const canvas = document.getElementById('priceChart');
+    if (!canvas) return;
+
+    const priceDaySelect = document.getElementById('price-day-select');
+    const selectedDay = priceDaySelect ? priceDaySelect.value : 'all';
+
+    let displayData = currentPriceData;
+    if (selectedDay !== 'all') {
+        displayData = currentPriceData.filter(item => item.date === selectedDay);
+    }
+
+    // Sort chronologically based on rawTimestamp
+    const sortedData = [...displayData].sort((a, b) => new Date(a.rawTimestamp) - new Date(b.rawTimestamp));
+
+    // Map labels to a nice local string
+    const labels = sortedData.map(item => {
+        const d = new Date(item.rawTimestamp);
+        return isNaN(d.getTime()) ? item.rawTimestamp : d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    });
+    
+    const priceValues = sortedData.map(item => item.price);
+
+    if (window.priceChartInstance) {
+        window.priceChartInstance.destroy();
+    }
+
+    if (labels.length === 0) return;
+
+    const ctx = canvas.getContext('2d');
+    window.priceChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Price',
+                data: priceValues,
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.1,
+                pointBackgroundColor: '#10b981',
+                pointBorderColor: '#fff',
+                pointRadius: 2,
+                pointHoverRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: 'rgba(15, 17, 26, 0.9)',
+                    titleColor: '#f8fafc',
+                    bodyColor: '#e2e8f0',
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(context) {
+                            return 'Price: $' + context.parsed.y.toFixed(2);
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#94a3b8', maxTicksLimit: 10 },
+                    grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false }
+                },
+                y: {
+                    ticks: { color: '#94a3b8' },
                     grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false }
                 }
             },

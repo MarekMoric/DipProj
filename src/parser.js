@@ -116,13 +116,87 @@ function parseCSV(content) {
   return data;
 }
 
-function parseXLSX(buffer) {
+function parseXLSX(buffer, isPrice = false) {
   if (typeof XLSX === 'undefined') {
     throw new Error('XLSX library is not loaded.');
   }
-  const workbook = XLSX.read(buffer, { type: 'array' });
+  const workbook = XLSX.read(buffer, { type: 'array', cellDates: isPrice });
   const firstSheetName = workbook.SheetNames[0];
   const worksheet = workbook.Sheets[firstSheetName];
   // Parse with first row as header to array of JSON objects
-  return XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+  const opts = isPrice ? { defval: "" } : { defval: "", raw: false };
+  return XLSX.utils.sheet_to_json(worksheet, opts);
+}
+
+export async function parsePriceFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    const isXlsx = file.name.toLowerCase().endsWith('.xlsx');
+
+    reader.onload = (e) => {
+      try {
+        const fileContent = e.target.result;
+        let parsedData = [];
+
+        if (file.name.toLowerCase().endsWith('.csv')) {
+          parsedData = parseCSV(fileContent);
+        } else if (isXlsx) {
+          parsedData = parseXLSX(fileContent, true);
+        } else {
+          return reject(new Error('Unsupported format for price data.'));
+        }
+
+        const standardFormat = parsedData.map((row, index) => {
+          let dateStr = null;
+          let timeStr = null;
+
+          const timestamp = row.timestamp || row.Timestamp || row.TIMESTAMP || row.time || row.Date || '';
+          let dateObj = null;
+
+          if (timestamp instanceof Date) {
+            dateObj = timestamp;
+          } else if (typeof timestamp === 'number') {
+            // Excel serial date format
+            const dateInMs = (timestamp - 25569) * 86400 * 1000;
+            const utcDate = new Date(dateInMs);
+            dateObj = new Date(utcDate.getTime() + (utcDate.getTimezoneOffset() * 60000));
+          } else if (timestamp) {
+            dateObj = new Date(timestamp);
+          }
+
+          if (dateObj && !isNaN(dateObj.getTime())) {
+            dateStr = dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+            timeStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+          }
+
+          const rawPrice = row.price || row.Price || row.PRICE || 0;
+          let priceValue = typeof rawPrice === 'number' ? rawPrice : parseFloat(String(rawPrice).replace(',', '.'));
+
+          return {
+            id: index + 1,
+            price: priceValue,
+            date: dateStr,
+            time: timeStr,
+            rawTimestamp: dateObj ? dateObj.toISOString() : timestamp
+          };
+        }).filter(item => item.date && !isNaN(item.price));
+
+        if (standardFormat.length === 0) {
+          return reject(new Error('No valid price data found. Ensure "price" and "timestamp" columns exist.'));
+        }
+
+        resolve(standardFormat);
+      } catch (err) {
+        reject(new Error(`Failed to parse price file: ${err.message}`));
+      }
+    };
+
+    reader.onerror = () => reject(new Error('Error reading price file'));
+
+    if (isXlsx) {
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.readAsText(file);
+    }
+  });
 }

@@ -1,10 +1,10 @@
-import { parseFile } from './parser.js';
-import { showToast, renderDataGrid, updateGlobalSentiment, updateDashboardStats, toggleSettings, showDashboard, renderFrequencyGraph } from './ui.js';
+import { parseFile, parsePriceFile } from './parser.js';
+import { showToast, renderDataGrid, updateGlobalSentiment, updateDashboardStats, toggleSettings, showDashboard, renderFrequencyGraph, renderPriceGraph } from './ui.js';
 import { evaluateAggregatedSentiment } from './llm.js';
 
 // Application State
 let appData = [];
-let filteredData = [];
+let appPriceData = [];
 let isAnalyzing = false;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -61,17 +61,27 @@ function setupEventListeners() {
   // Export Button
   document.getElementById('btn-export').addEventListener('click', handleExport);
 
-  // Filter Input
-  document.getElementById('filter-input').addEventListener('input', handleFilter);
-}
+  // Import New Dataset Button
+  document.getElementById('btn-import-new').addEventListener('click', () => {
+    document.getElementById('file-upload').value = '';
+    document.getElementById('file-upload').click();
+  });
 
-function handleFilter(e) {
-  const keyword = e.target.value.toLowerCase();
-  filteredData = keyword ? appData.filter(item => item.text.toLowerCase().includes(keyword)) : [...appData];
-
-  renderDataGrid(filteredData);
-  updateDashboardStats(filteredData);
-  renderFrequencyGraph(filteredData);
+  // Price Upload
+  document.getElementById('price-file-upload').addEventListener('change', async (e) => {
+    const files = e.target.files;
+    if (files.length === 0) return;
+    
+    showToast(`Parsing price data...`, 'info');
+    try {
+      appPriceData = await parsePriceFile(files[0]);
+      showToast(`Successfully loaded ${appPriceData.length} price records.`, 'success');
+      document.getElementById('price-container').classList.remove('hidden');
+      renderPriceGraph(appPriceData);
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  });
 }
 
 function preventDefaults(e) {
@@ -95,16 +105,13 @@ async function handleFiles(files) {
     const data = await parseFile(file);
     appData = data;
 
-    const keyword = document.getElementById('filter-input').value.toLowerCase();
-    filteredData = keyword ? appData.filter(item => item.text.toLowerCase().includes(keyword)) : [...appData];
-
     showToast(`Successfully loaded ${appData.length} records.`, 'success');
 
     // Switch UI view
     showDashboard(true);
-    renderDataGrid(filteredData);
-    updateDashboardStats(filteredData);
-    renderFrequencyGraph(filteredData);
+    renderDataGrid(appData);
+    updateDashboardStats(appData);
+    renderFrequencyGraph(appData);
     updateGlobalSentiment('pending');
 
     // Reset export button state
@@ -123,7 +130,7 @@ async function handleFiles(files) {
 }
 
 async function handleAnalyze() {
-  const dataToAnalyze = filteredData;
+  const dataToAnalyze = appData;
   if (dataToAnalyze.length === 0) {
     showToast('No data to analyze.', 'error');
     return;
@@ -174,7 +181,7 @@ async function handleAnalyze() {
 }
 
 function handleExport() {
-  const dataToExport = filteredData;
+  const dataToExport = appData;
   if (dataToExport.length === 0) return;
 
   // Simple CSV generation (Removed Sentiment column per request)
