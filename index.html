@@ -88,6 +88,9 @@
                         <button id="btn-analyze" class="btn btn-accent">
                             <i class="ph ph-magic-wand"></i> Analyze Sentiment
                         </button>
+                        <button id="btn-correlate" class="btn btn-accent" disabled>
+                            <i class="ph ph-link"></i> Get tweet-to-price analysis
+                        </button>
                         <button id="btn-import-new" class="btn btn-outline">
                             <i class="ph ph-upload-simple"></i> Import New
                         </button>
@@ -152,6 +155,15 @@
                     </div>
                     <div style="position: relative; height: 300px; width: 100%;">
                         <canvas id="priceChart"></canvas>
+                    </div>
+                </div>
+
+                <div id="correlation-result-container" class="glass-panel hidden" style="margin-bottom: 2rem;">
+                    <div class="dashboard-header" style="margin-bottom: 0;">
+                        <h3 style="font-size: 1.1rem; color: var(--text-color); font-weight: 500; margin: 0;"><i class="ph ph-link"></i> Tweet-to-Price result</h3>
+                    </div>
+                    <div id="correlation-content" class="text-sm text-gray-300 mt-4" style="white-space: pre-wrap; line-height: 1.6;">
+                        <!-- Result from LLM will appear here -->
                     </div>
                 </div>
 

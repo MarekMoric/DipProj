@@ -1,6 +1,6 @@
 import { parseFile, parsePriceFile } from './parser.js';
-import { showToast, renderDataGrid, updateGlobalSentiment, updateDashboardStats, toggleSettings, showDashboard, renderFrequencyGraph, renderPriceGraph } from './ui.js';
-import { evaluateAggregatedSentiment } from './llm.js';
+import { showToast, renderDataGrid, updateGlobalSentiment, updateDashboardStats, toggleSettings, showDashboard, renderFrequencyGraph, renderPriceGraph, toggleCorrelationButton, displayCorrelationResult } from './ui.js';
+import { evaluateAggregatedSentiment, evaluateCorrelation } from './llm.js';
 
 // Application State
 let appData = [];
@@ -58,6 +58,9 @@ function setupEventListeners() {
   // Analysis Button
   document.getElementById('btn-analyze').addEventListener('click', handleAnalyze);
 
+  // Correlation Button
+  document.getElementById('btn-correlate').addEventListener('click', handleCorrelate);
+
   // Export Button
   document.getElementById('btn-export').addEventListener('click', handleExport);
 
@@ -78,6 +81,10 @@ function setupEventListeners() {
       showToast(`Successfully loaded ${appPriceData.length} price records.`, 'success');
       document.getElementById('price-container').classList.remove('hidden');
       renderPriceGraph(appPriceData);
+
+      if (appData.length > 0 && appPriceData.length > 0) {
+        toggleCorrelationButton(true);
+      }
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -113,6 +120,10 @@ async function handleFiles(files) {
     updateDashboardStats(appData);
     renderFrequencyGraph(appData);
     updateGlobalSentiment('pending');
+
+    if (appData.length > 0 && appPriceData.length > 0) {
+      toggleCorrelationButton(true);
+    }
 
     // Reset export button state
     document.getElementById('btn-export').disabled = true;
@@ -177,6 +188,52 @@ async function handleAnalyze() {
     isAnalyzing = false;
     analyzeBtn.disabled = false;
     analyzeBtn.innerHTML = '<i class="ph ph-magic-wand"></i> Analyze Sentiment';
+  }
+}
+
+let isCorrelating = false;
+
+async function handleCorrelate() {
+  if (appData.length === 0 || appPriceData.length === 0) {
+    showToast('Both tweet and price data are required.', 'error');
+    return;
+  }
+
+  const apiKey = localStorage.getItem('sentiment_api_key');
+  if (!apiKey) {
+    showToast('Missing Gemini API Key. Open settings to configure it.', 'error');
+    toggleSettings(true);
+    return;
+  }
+
+  if (isCorrelating) return;
+
+  const btn = document.getElementById('btn-correlate');
+  isCorrelating = true;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ph ph-spinner-gap spin"></i> Analyzing...';
+
+  showToast('Evaluating tweet-to-price connections...', 'info');
+  displayCorrelationResult('', true, false);
+
+  try {
+    const result = await evaluateCorrelation(appData, appPriceData, apiKey);
+    
+    if (result.error) {
+      showToast('Analysis encountered an error.', 'error');
+      displayCorrelationResult(result.error, false, true);
+    } else {
+      showToast('Tweet-to-price analysis complete!', 'success');
+      displayCorrelationResult(result.text, false, false);
+    }
+
+  } catch (err) {
+    showToast(`Analysis error: ${err.message}`, 'error');
+    displayCorrelationResult(`Error: ${err.message}`, false, true);
+  } finally {
+    isCorrelating = false;
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ph ph-link"></i> Get tweet-to-price analysis';
   }
 }
 

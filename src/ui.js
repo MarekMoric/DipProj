@@ -416,3 +416,30 @@ export function renderPriceGraph(data) {
         }
     });
 }
+
+export function toggleCorrelationButton(enable) {
+    const btn = document.getElementById('btn-correlate');
+    if (btn) {
+        btn.disabled = !enable;
+    }
+}
+
+export function displayCorrelationResult(result, isLoading = false, isError = false) {
+    const container = document.getElementById('correlation-result-container');
+    const content = document.getElementById('correlation-content');
+    if (!container || !content) return;
+    
+    container.classList.remove('hidden');
+    
+    if (isLoading) {
+        content.innerHTML = '<i class="ph ph-spinner-gap spin"></i> Analyzing tweet-to-price connection...';
+        content.style.color = 'var(--text-muted)';
+    } else if (isError) {
+        content.innerHTML = `<i class="ph ph-warning-circle"></i> ${escapeHTML(result)}`;
+        content.style.color = '#ef4444'; // red-500
+    } else {
+        // Plain text result
+        content.textContent = result;
+        content.style.color = '#f8fafc'; // slate-50
+    }
+}
