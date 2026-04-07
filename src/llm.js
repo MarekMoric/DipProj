@@ -174,8 +174,12 @@ export async function evaluateCorrelation(tweets, prices, apiKey) {
   const pricesText = prices.map(p => `[${p.date || 'Unknown Date'} ${p.time || ''}] Price: ${p.price}`).join('\n');
 
   const userPrompt = `I have a dataset of social media posts (tweets) and a corresponding dataset of asset prices over time. 
-Please analyze the price data in regards to the day-to-day tweet data. Provide an analysis indicating whether these two can be connected somehow (for example, if tweets started appearing and hinting at upcoming changes to the price).
-Return your analysis as plain text. Be concise, user-friendly, and insightful.
+Please analyze the price data in regards to the day-to-day tweet data.  
+Provide an analysis indicating whether these two can be connected somehow 
+(for example, if tweets started appearing and hinting at upcoming changes to the price).
+Also analyze whether the tweet activity could be bot activity.
+For this, do sections like Bot Activity, Price Trend Prediction etc. so it makes sense what you have analyzed.
+Return your analysis as plain text. Be concise, a little bit brief, user-friendly, and insightful.
 
 === Tweets ===
 ${tweetsText}
